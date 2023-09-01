@@ -1,0 +1,1028 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:google-sheets="http://www.mulesoft.org/schema/mule/google-sheets" xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
+http://www.mulesoft.org/schema/mule/google-sheets http://www.mulesoft.org/schema/mule/google-sheets/current/mule-google-sheets.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="c9a5bf0e-3d74-4e86-8d64-60ffd26fbce1" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="f592afe3-f399-4b47-936b-79c31801b859" >
+		<email:smtp-connection host="smtp.gmail.com" port="587" user="maheshkmarreddysabbella@gmail.com" password="aclhcfzcqunlyhby" >
+			<email:properties >
+				<email:property key="mail.smtp.starttls.enable" value="true" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
+	<google-sheets:config name="Google_Sheets_Config" doc:name="Google Sheets Config" doc:id="1b18294d-e6e3-4d77-8584-0edb26ba2e95" >
+		<google-sheets:oauth-2-0-connection >
+			<google-sheets:oauth-authorization-code consumerKey="53735095196-b99qr18v0uaaikk15g6ca40q90mj3ek6.apps.googleusercontent.com" consumerSecret="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" resourceOwnerId="demouser" />
+			<google-sheets:oauth-callback-config listenerConfig="HTTP_Listener_config" callbackPath="/callback" authorizePath="/authorize" externalCallbackUrl="http://localhost:8081/callback" />
+		</google-sheets:oauth-2-0-connection>
+	</google-sheets:config>
+	<flow name="birthdayFlow" doc:id="d52ae6e3-d619-419c-9675-c9438895e669" >
+		<http:listener doc:name="Listener" doc:id="71a00bdd-31ab-4c12-b004-fed41da46152" config-ref="HTTP_Listener_config" path="test">
+			<http:response >
+				<http:body ><![CDATA[#[vars.my]]]></http:body>
+			</http:response>
+		</http:listener>
+		<google-sheets:get-spreadsheets-values-by-spreadsheet-id-range doc:name="Get Spreadsheets Values" doc:id="efa0aa71-6c4f-4e5a-8a07-80519183963e" config-ref="Google_Sheets_Config" spreadsheetId="1N78MlvXlDPgsxv34ZE-ljyJtUGODKkFR2B4uXFs8Ewo" range="Sheet1" />
+		<ee:transform doc:name="Transform Message" doc:id="a4953824-1ee7-4400-9394-863218590040" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="people" ><![CDATA[%dw 2.0
+output application/json
+var people=payload.values map(item,index) -> {
+    "name":item[0],
+    "birthday":item[3] as Date {format: 'dd/MM/yyyy'} as Date {format: 'yyyy-MM-dd'},
+    "email":item[1] 
+}
+---
+people 
+]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="ab8fcd9a-6e58-48a7-9377-08508981af83" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="emails" ><![CDATA[%dw 2.0
+output application/json
+var emails=payload.values map (item) -> item[1]
+
+---
+emails]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<set-variable value="#[now()]" doc:name="To Store Present Time" doc:id="2c0e93d7-8c8e-4820-8b76-c6427e11f186" variableName="present"/>
+		<foreach doc:name="For Each" doc:id="045094ad-f00d-48f7-89eb-a43bb4a0da53" collection="#[vars.people]" counterVariableName="index">
+			<ee:transform doc:name="Transform Message" doc:id="4dd9fa13-c0c6-4f5c-a55e-95efbbbc27c5" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload
+
+
+]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<choice doc:name="Choice" doc:id="2a59b20f-10e9-4672-848e-4528325e88d6" >
+				<when expression="#[payload.birthday.month == vars.present.month and payload.birthday.day == vars.present.day]">
+					<ee:transform doc:name="Transform Message" doc:id="d98b397a-d9c3-4ff7-831b-cfe2ecb0be8f">
+						<ee:message>
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable variableName="newEmails" ><![CDATA[%dw 2.0
+output application/java
+var newEmails= vars.emails filter (item) -> item != payload.email
+---
+newEmails]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+					<email:send doc:name="sendEmailtobirthdayemployee" doc:id="9c8a1a11-d302-4b25-af21-a713588670e7" config-ref="Email_SMTP" fromAddress="maheshkmarreddysabbella@gmail.com" subject='#["HAPPY BIRTHDAY " ++ upper(payload.name) ++ " FROM INHERITCLOUD"]'>
+						<email:to-addresses >
+							<email:to-address value="#[payload.email]" />
+						</email:to-addresses>
+						<email:body contentType="text/html">
+							<email:content ><![CDATA[#[%dw 2.0
+output text/plain
+
+
+
+var html = `<style type="text/css">
+ @media only screen and (min-width: 570px) {
+ .u-row {
+ width: 550px !important;
+ }
+ .u-row .u-col {
+ vertical-align: top;
+ }
+
+ .u-row .u-col-100 {
+ width: 550px !important;
+ }
+
+}
+
+@media (max-width: 570px) {
+ .u-row-container {
+ max-width: 100% !important;
+ padding-left: 0px !important;
+ padding-right: 0px !important;
+ }
+ .u-row .u-col {
+ min-width: 320px !important;
+ max-width: 100% !important;
+ display: block !important;
+ }
+ .u-row {
+ width: 100% !important;
+ }
+ .u-col {
+ width: 100% !important;
+ }
+ .u-col > div {
+ margin: 0 auto;
+ }
+}
+body {
+ margin: 0;
+ padding: 0;
+}
+
+table,
+tr,
+td {
+ vertical-align: top;
+ border-collapse: collapse;
+}
+
+p {
+ margin: 0;
+}
+
+.ie-container table,
+.mso-container table {
+ table-layout: fixed;
+}
+
+* {
+ line-height: inherit;
+}
+
+a[x-apple-data-detectors='true'] {
+ color: inherit !important;
+ text-decoration: none !important;
+}
+
+table, td { color: #000000; } #u_body a { color: #0000ee; text-decoration: underline; }
+ </style>
+ <link href="https://fonts.googleapis.com/css?family=Pacifico&display=swap" rel="stylesheet" type="text/css"><link href="https://fonts.googleapis.com/css2?family=Caveat+Brush&display=swap" rel="stylesheet" type="text/css"> 
+
+</head>
+
+<body class="clean-body u_body" style="margin: 0;padding: 0;-webkit-text-size-adjust: 100%;background-color: #e9edc9;color: #000000">
+ 
+ 
+ <table id="u_body" style="border-collapse: collapse;table-layout: fixed;border-spacing: 0;mso-table-lspace: 0pt;mso-table-rspace: 0pt;vertical-align: top;min-width: 320px;Margin: 0 auto;background-color: #e9edc9;width:100%" cellpadding="0" cellspacing="0">
+ <tbody>
+ <tr style="vertical-align: top">
+ <td style="word-break: break-word;border-collapse: collapse !important;vertical-align: top">
+ 
+ 
+ 
+ 
+<div class="u-row-container" style="padding: 0px;background-color: transparent">
+ <div class="u-row" style="margin: 0 auto;min-width: 320px;max-width: 550px;overflow-wrap: break-word;word-wrap: break-word;word-break: break-word;background-color: transparent;">
+ <div style="border-collapse: collapse;display: table;width: 100%;height: 100%;background-color: transparent;">
+ 
+ 
+ 
+<div class="u-col u-col-100" style="max-width: 320px;min-width: 550px;display: table-cell;vertical-align: top;">
+ <div style="height: 100%;width: 100% !important;">
+ <div style="box-sizing: border-box; height: 100%; padding: 0px;border-top: 0px solid transparent;border-left: 0px solid transparent;border-right: 0px solid transparent;border-bottom: 0px solid transparent;"> 
+ 
+<table style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+ <tbody>
+ <tr>
+ <td style="overflow-wrap:break-word;word-break:break-word;padding:10px;font-family:arial,helvetica,sans-serif;" align="left">
+ 
+ <table height="0px" align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse;table-layout: fixed;border-spacing: 0;mso-table-lspace: 0pt;mso-table-rspace: 0pt;vertical-align: top;border-top: 0px solid #BBBBBB;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%">
+ <tbody>
+ <tr style="vertical-align: top">
+ <td style="word-break: break-word;border-collapse: collapse !important;vertical-align: top;font-size: 0px;line-height: 0px;mso-line-height-rule: exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%">
+ <span>&#160;</span>
+ </td>
+ </tr>
+ </tbody>
+ </table>
+
+ </td>
+ </tr>
+ </tbody>
+</table>
+
+ </div> 
+ </div>
+</div>
+ 
+ 
+ </div>
+ </div>
+ </div>
+ 
+
+
+ 
+ 
+<div class="u-row-container" style="padding: 0px;background-color: transparent">
+ <div class="u-row" style="margin: 0 auto;min-width: 320px;max-width: 550px;overflow-wrap: break-word;word-wrap: break-word;word-break: break-word;background-color: #ffffff;">
+ <div style="border-collapse: collapse;display: table;width: 100%;height: 100%;background-color: transparent;">
+ 
+ 
+ 
+<div class="u-col u-col-100" style="max-width: 320px;min-width: 550px;display: table-cell;vertical-align: top;">
+ <div style="height: 100%;width: 100% !important;">
+ <div style="box-sizing: border-box; height: 100%; padding: 0px;border-top: 0px solid transparent;border-left: 0px solid transparent;border-right: 0px solid transparent;border-bottom: 0px solid transparent;"> 
+ 
+<table style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+ <tbody>
+ <tr>
+ <td style="overflow-wrap:break-word;word-break:break-word;padding:10px;font-family:arial,helvetica,sans-serif;" align="left">
+ 
+ <h1 style="margin: 0px; color: #3598db; line-height: 140%; text-align: center; word-wrap: break-word; font-family: Caveat Brush; font-size: 22px; font-weight: 400;">Happy Birthday `
+ 
+ var html2 =  `</h1>
+
+ </td>
+ </tr>
+ </tbody>
+</table>
+
+ </div> 
+ </div>
+</div>
+ 
+ 
+ </div>
+ </div>
+ </div>
+ 
+
+
+ 
+ 
+<div class="u-row-container" style="padding: 0px;background-color: transparent">
+ <div class="u-row" style="margin: 0 auto;min-width: 320px;max-width: 550px;overflow-wrap: break-word;word-wrap: break-word;word-break: break-word;background-color: #ffffff;">
+ <div style="border-collapse: collapse;display: table;width: 100%;height: 100%;background-color: transparent;">
+ 
+ 
+ 
+<div class="u-col u-col-100" style="max-width: 320px;min-width: 550px;display: table-cell;vertical-align: top;">
+ <div style="height: 100%;width: 100% !important;">
+ <div style="box-sizing: border-box; height: 100%; padding: 0px;border-top: 0px solid transparent;border-left: 0px solid transparent;border-right: 0px solid transparent;border-bottom: 0px solid transparent;"> 
+ 
+<table style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+ <tbody>
+ <tr>
+ <td style="overflow-wrap:break-word;word-break:break-word;padding:10px 0px;font-family:arial,helvetica,sans-serif;" align="left">
+ 
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+ <tr>
+ <td style="padding-right: 0px;padding-left: 0px;" align="center">
+ 
+ <img align="center" border="0" src="https://lh3.google.com/u/0/d/11HQwuP1KmtZzRAdISLxcyT-rEK9ZZtWP=w1920-h884-iv1" alt="Hero Image" title="Hero Image" style="outline: none;text-decoration: none;-ms-interpolation-mode: bicubic;clear: both;display: inline-block !important;border: none;height: auto;float: none;width: 100%;max-width: 550px;" width="550"/>
+ 
+ </td>
+ </tr>
+</table>
+
+ </td>
+ </tr>
+ </tbody>
+</table>
+
+ </div> 
+ </div>
+</div>
+ 
+ 
+ </div>
+ </div>
+ </div>
+ 
+
+
+ 
+ 
+<div class="u-row-container" style="padding: 0px;background-color: transparent">
+ <div class="u-row" style="margin: 0 auto;min-width: 320px;max-width: 550px;overflow-wrap: break-word;word-wrap: break-word;word-break: break-word;background-color: #ffffff;">
+ <div style="border-collapse: collapse;display: table;width: 100%;height: 100%;background-color: transparent;">
+ 
+ 
+ 
+<div class="u-col u-col-100" style="max-width: 320px;min-width: 550px;display: table-cell;vertical-align: top;">
+ <div style="height: 100%;width: 100% !important;">
+ <div style="box-sizing: border-box; height: 100%; padding: 0px;border-top: 0px solid transparent;border-left: 0px solid transparent;border-right: 0px solid transparent;border-bottom: 0px solid transparent;"> 
+ 
+<table style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+ <tbody>
+ <tr>
+ <td style="overflow-wrap:break-word;word-break:break-word;padding:10px;font-family:arial,helvetica,sans-serif;" align="left">
+ 
+ <h1 style="margin: 0px; color: #537ea7; line-height: 140%; text-align: center; word-wrap: break-word; font-family: 'Pacifico',cursive; font-size: 37px; font-weight: 400;">It’s your birthday!</h1>
+
+ </td>
+ </tr>
+ </tbody>
+</table>
+
+<table style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+ <tbody>
+ <tr>
+ <td style="overflow-wrap:break-word;word-break:break-word;padding:10px 30px;font-family:arial,helvetica,sans-serif;" align="left">
+ 
+ <div style="font-size: 14px; color: #728190; line-height: 170%; text-align: center; word-wrap: break-word;">
+ <p style="line-height: 170%;">I hope this special day brings you lots of joy, laughter, and amazing memories. Birthdays are the perfect time to celebrate all the wonderful things about you and to appreciate the incredible person you are.</p>
+<p style="line-height: 170%;">Thank you for being such an important part of our team. Your hard work, dedication, and positive attitude make a huge difference in our workplace. We are truly lucky to have you on board.</p>
+<p style="line-height: 170%;">Enjoy your day to the fullest, and don't forget to treat yourself to something sweet! 🍰🍨</p>
+<p style="line-height: 170%;">Happy birthday once again!</p>
+<p style="line-height: 170%;">Best regards,</p>
+ </div>
+
+ </td>
+ </tr>
+ </tbody>
+</table>
+
+ </div> 
+ </div>
+</div>
+ 
+ 
+ </div>
+ </div>
+ </div>
+ 
+
+
+ 
+ 
+<div class="u-row-container" style="padding: 0px;background-color: transparent">
+ <div class="u-row" style="margin: 0 auto;min-width: 320px;max-width: 550px;overflow-wrap: break-word;word-wrap: break-word;word-break: break-word;background-color: transparent;">
+ <div style="border-collapse: collapse;display: table;width: 100%;height: 100%;background-color: transparent;">
+ 
+ 
+ 
+<div class="u-col u-col-100" style="max-width: 320px;min-width: 550px;display: table-cell;vertical-align: top;">
+ <div style="height: 100%;width: 100% !important;">
+ <div style="box-sizing: border-box; height: 100%; padding: 0px;border-top: 0px solid transparent;border-left: 0px solid transparent;border-right: 0px solid transparent;border-bottom: 0px solid transparent;"> 
+ 
+<table style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+ <tbody>
+ <tr>
+ <td style="overflow-wrap:break-word;word-break:break-word;padding:30px 10px 10px;font-family:arial,helvetica,sans-serif;" align="left">
+ 
+<div align="center">
+ <div style="display: table; max-width:131px;">
+ 
+ 
+ 
+ 
+ <table align="left" border="0" cellspacing="0" cellpadding="0" width="32" height="32" style="width: 32px !important;height: 32px !important;display: inline-block;border-collapse: collapse;table-layout: fixed;border-spacing: 0;mso-table-lspace: 0pt;mso-table-rspace: 0pt;vertical-align: top;margin-right: 12px">
+ <tbody><tr style="vertical-align: top"><td align="left" valign="middle" style="word-break: break-word;border-collapse: collapse !important;vertical-align: top">
+ <a href="https://linkedin.com/" title="LinkedIn" target="_blank">
+ <img src="https://lh3.google.com/u/0/d/1choU8MlrXpwpdEgSlgn23F62MZ9GICx3=w1920-h884-iv1" alt="LinkedIn" title="LinkedIn" width="32" style="outline: none;text-decoration: none;-ms-interpolation-mode: bicubic;clear: both;display: block !important;border: none;height: auto;float: none;max-width: 32px !important">
+ </a>
+ </td></tr>
+ </tbody></table>
+ 
+ 
+ 
+ <table align="left" border="0" cellspacing="0" cellpadding="0" width="32" height="32" style="width: 32px !important;height: 32px !important;display: inline-block;border-collapse: collapse;table-layout: fixed;border-spacing: 0;mso-table-lspace: 0pt;mso-table-rspace: 0pt;vertical-align: top;margin-right: 12px">
+ <tbody><tr style="vertical-align: top"><td align="left" valign="middle" style="word-break: break-word;border-collapse: collapse !important;vertical-align: top">
+ <a href="https://twitter.com/" title="Twitter" target="_blank">
+ <img src="https://lh3.google.com/u/0/d/1RKGdryhTFDl-QxOcpIfHgdBkIFlP2OYo=w1920-h884-iv1" alt="Twitter" title="Twitter" width="32" style="outline: none;text-decoration: none;-ms-interpolation-mode: bicubic;clear: both;display: block !important;border: none;height: auto;float: none;max-width: 32px !important">
+ </a>
+ </td></tr>
+ </tbody></table>
+ 
+ 
+ 
+ <table align="left" border="0" cellspacing="0" cellpadding="0" width="32" height="32" style="width: 32px !important;height: 32px !important;display: inline-block;border-collapse: collapse;table-layout: fixed;border-spacing: 0;mso-table-lspace: 0pt;mso-table-rspace: 0pt;vertical-align: top;margin-right: 0px">
+ <tbody><tr style="vertical-align: top"><td align="left" valign="middle" style="word-break: break-word;border-collapse: collapse !important;vertical-align: top">
+ <a href="https://instagram.com/" title="Instagram" target="_blank">
+ <img src="https://lh3.google.com/u/0/d/14xG4uG92UMu9-D_XvQUhtcGGyeh60zbb=w1920-h884-iv1" alt="Instagram" title="Instagram" width="32" style="outline: none;text-decoration: none;-ms-interpolation-mode: bicubic;clear: both;display: block !important;border: none;height: auto;float: none;max-width: 32px !important">
+ </a>
+ </td></tr>
+ </tbody></table>
+ 
+ 
+ 
+ 
+ </div>
+</div>
+
+ </td>
+ </tr>
+ </tbody>
+</table>
+
+<table style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+ <tbody>
+ <tr>
+ <td style="overflow-wrap:break-word;word-break:break-word;padding:0px 10px 10px;font-family:arial,helvetica,sans-serif;" align="left">
+ 
+ <div style="font-size: 14px; color: #537ea7; line-height: 140%; text-align: center; word-wrap: break-word;">
+ <p onclick="window.open('https://www.inheritcloud.com/', '_blank')" style="font-size: 14px; cursor: pointer; line-height: 140%;"><span style="font-size: 14px; line-height: 19.6px; font-family: 'comic sans ms', sans-serif;"><span style="font-size: 14px; line-height: 19.6px;"><span style="font-size: 14px; line-height: 19.6px;"><span style="font-size: 22px; line-height: 30.8px;">www.inheritcloud.com</span></span></span></span></p>
+ </div>
+
+ </td>
+ </tr>
+ </tbody>
+</table>
+
+<table style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+ <tbody>
+ <tr>
+ <td style="overflow-wrap:break-word;word-break:break-word;padding:10px;font-family:arial,helvetica,sans-serif;" align="left">
+ 
+ <div style="font-size: 14px; color: #7e8c8d; line-height: 160%; text-align: center; word-wrap: break-word;">
+ <p style="font-size: 14px; line-height: 160%;"></p>
+<p style="font-size: 14px; line-height: 160%;">Hyderabad | Chennai | Banglore </p>
+ </div>
+
+ </td>
+ </tr>
+ </tbody>
+</table>
+
+<table style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+ <tbody>
+ <tr>
+ <td style="overflow-wrap:break-word;word-break:break-word;padding:10px;font-family:arial,helvetica,sans-serif;" align="left">
+ 
+ <table height="0px" align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse;table-layout: fixed;border-spacing: 0;mso-table-lspace: 0pt;mso-table-rspace: 0pt;vertical-align: top;border-top: 1px solid #BBBBBB;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%">
+ <tbody>
+ <tr style="vertical-align: top">
+ <td style="word-break: break-word;border-collapse: collapse !important;vertical-align: top;font-size: 0px;line-height: 0px;mso-line-height-rule: exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%">
+ <span>&#160;</span>
+ </td>
+ </tr>
+ </tbody>
+ </table>
+
+ </td>
+ </tr>
+ </tbody>
+</table>
+
+<table style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+ <tbody>
+ <tr>
+ <td style="overflow-wrap:break-word;word-break:break-word;padding:0px 10px 15px;font-family:arial,helvetica,sans-serif;" align="left">
+ 
+ <div style="font-size: 14px; color: #7e8c8d; line-height: 140%; text-align: center; word-wrap: break-word;">
+ <p style="font-size: 14px; line-height: 140%;">&copy;2023 Inherit Cloud Private Ltd. All Rights Reserved.</p>
+ </div>
+
+ </td>
+ </tr>
+ </tbody>
+</table>
+
+ </div> 
+ </div>
+</div>
+ 
+ 
+ </div>
+ </div>
+ </div>
+ 
+
+
+ 
+ </td>
+ </tr>
+ </tbody>
+ </table>
+ 
+ 
+</body>
+
+</html>`
+---
+html ++ payload.name ++ html2]]]></email:content>
+						</email:body>
+					</email:send>
+					<email:send doc:name="SendToTeam" doc:id="7de9a254-95e0-44d3-90e8-3e1f57c87f55" config-ref="Email_SMTP" fromAddress="maheshkmarreddysabbella@gmail.com" subject='#["Take A Time To Wish " ++ payload.name++"..!"]' toAddresses="#[vars.newEmails]">
+						<email:body >
+							<email:content ><![CDATA[#[%dw 2.0
+output text/plain
+var name = payload.name
+var companyName = "Inherit Cloud."
+var yourName = "Mahesh"
+var position = "Apprentice"
+---
+"Dear Team,\n\n" ++
+"I hope this message finds you well. Today one of our esteemed colleagues is celebrating their birthday.\n\n" ++
+"As a close-knit team, it's important for us to celebrate each other's milestones and show our appreciation. Today, I invite each of you to join in and send your warmest birthday wishes to " ++ name ++ ". Whether it's a quick message, a virtual card, or a simple 'Happy Birthday!' in person, your kind words will make his day extra special.\n\n" ++
+"Please take a moment to send your birthday greetings to " ++ name ++ " today, either through email, a chat message, or in person if you're in the office. Small gestures can go a long way in brightening someone's day.\n\n" ++
+"Let's come together as a team to make " ++ name ++ "'s birthday truly exceptional.\n\n" ++
+"Warm regards,\n\n" ++
+companyName]]]></email:content>
+						</email:body>
+					</email:send>
+					<logger level="INFO" doc:name="Logger" doc:id="fb97ef86-3e6e-4716-bc9a-67b8abd0b49f" message="#[payload]" />
+				</when>
+				<otherwise >
+					<logger level="INFO" doc:name="Logger" doc:id="7e5f886a-4b30-4dd8-a25c-aabbebc6fa04" />
+				</otherwise>
+			</choice>
+		</foreach>
+	</flow>
+	<flow name="anniversaryflow" doc:id="61e04a85-4ec7-4f4d-96ab-a39bae6cfb95" >
+		<http:listener doc:name="Listener" doc:id="179546fe-2364-4638-a745-8e3782572e1a" config-ref="HTTP_Listener_config" path="test1" >
+			<http:response >
+				<http:body ><![CDATA[#[vars.my]]]></http:body>
+			</http:response>
+		</http:listener>
+		<google-sheets:get-spreadsheets-values-by-spreadsheet-id-range doc:name="Get Spreadsheets Values" doc:id="b2068b71-8f9c-4acc-9a9a-ea854857460a" config-ref="Google_Sheets_Config" spreadsheetId="1N78MlvXlDPgsxv34ZE-ljyJtUGODKkFR2B4uXFs8Ewo" range="Sheet1" />
+		<ee:transform doc:name="Transform Message" doc:id="71303042-053f-46e7-bd2f-826344bec069" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="people" ><![CDATA[%dw 2.0
+output application/json
+var people=payload.values map(item,index) -> {
+    "name":item[0],
+    "joining":item[4] as Date {format: 'dd/MM/yyyy'} as Date {format: 'yyyy-MM-dd'},
+    "email":item[1] 
+}
+---
+people]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="ddb0d419-902f-41d8-a319-dcf9753988fe" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="emails" ><![CDATA[%dw 2.0
+output application/json
+var emails=payload.values map(item)-> item[1]
+---
+emails]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<set-variable value="#[now()]" doc:name="To store present time" doc:id="d5228aef-16ac-4f77-b5a2-ed1de50c529c" variableName="present" />
+		<foreach doc:name="For Each" doc:id="84b5ea7e-b02c-48d7-9dee-3c2a4425f924" collection="#[vars.people]">
+			<ee:transform doc:name="Transform Message" doc:id="8d93c4f9-be5f-4c15-ac1b-f341df92731c" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<choice doc:name="Choice" doc:id="6f72f965-ca76-407c-8c92-e527bd0f8b07" >
+				<when expression="#[payload.joining.month == vars.present.month and payload.joining.day == vars.present.day]" >
+					<ee:transform doc:name="Transform Message" doc:id="01e368bc-3d8d-4948-b71c-f9f1727caed2">
+						<ee:message>
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable variableName="newEmails" ><![CDATA[%dw 2.0
+output application/json
+var newEmails= vars.emails filter(item) -> item != payload.email
+---
+newEmails
+
+]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+					<email:send doc:name="Send" doc:id="a75ee568-5e3c-4f4f-b836-9acf4a637741" config-ref="Email_SMTP" fromAddress="maheshkmarreddysabbella@gmail.com" subject='#["HAPPY WORK ANNIVERSARY " ++ upper(payload.name) ++" FROM INHERITCLOUD"]'>
+						<email:to-addresses >
+							<email:to-address value="#[payload.email]" />
+						</email:to-addresses>
+						<email:body contentType="text/html">
+							<email:content ><![CDATA[#[%dw 2.0
+    output text/plain 
+
+    var name = payload.name
+    var years = now().year - payload.joining.year
+    var subject = if (years == 1) "Celebrating a Year of Success!" else "Celebrating " ++ years ++ " Years of Success!"
+    var middle = if(years == 1) "1 year has " else  years ++ " have "
+
+
+    var html = `
+    <style type="text/css">
+    @media only screen and (min-width: 620px) {
+    .u-row {
+    width: 600px !important;
+    }
+    .u-row .u-col {
+    vertical-align: top;
+    }
+
+    .u-row .u-col-100 {
+    width: 600px !important;
+    }
+
+    }
+
+    @media (max-width: 620px) {
+    .u-row-container {
+    max-width: 100% !important;
+    padding-left: 0px !important;
+    padding-right: 0px !important;
+    }
+    .u-row .u-col {
+    min-width: 320px !important;
+    max-width: 100% !important;
+    display: block !important;
+    }
+    .u-row {
+    width: 100% !important;
+    }
+    .u-col {
+    width: 100% !important;
+    }
+    .u-col > div {
+    margin: 0 auto;
+    }
+    }
+    body {
+    margin: 0;
+    padding: 0;
+    }
+
+    table,
+    tr,
+    td {
+    vertical-align: top;
+    border-collapse: collapse;
+    }
+
+    p {
+    margin: 0;
+    }
+
+    .ie-container table,
+    .mso-container table {
+    table-layout: fixed;
+    }
+
+    * {
+    line-height: inherit;
+    }
+
+    a[x-apple-data-detectors='true'] {
+    color: inherit !important;
+    text-decoration: none !important;
+    }
+
+    table, td { color: #000000; } #u_body a { color: #0000ee; text-decoration: underline; } @media (max-width: 480px) { #u_content_text_5 .v-container-padding-padding { padding: 52px 10px 56px !important; } #u_content_heading_3 .v-container-padding-padding { padding: 20px 15px 0px 10px !important; } #u_content_heading_5 .v-font-size { font-size: 22px !important; } #u_content_image_5 .v-src-width { width: auto !important; } #u_content_image_5 .v-src-max-width { max-width: 90% !important; } #u_content_text_4 .v-container-padding-padding { padding: 30px 15px 10px !important; } #u_content_image_1 .v-container-padding-padding { padding: 20px 10px !important; } #u_content_image_1 .v-src-width { width: auto !important; } #u_content_image_1 .v-src-max-width { max-width: 65% !important; } #u_content_text_3 .v-container-padding-padding { padding: 10px 20px 30px !important; } }
+
+    /* latin */
+    @font-face {
+    font-family: 'Lobster Two';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url(https://fonts.gstatic.com/s/lobstertwo/v20/BngMUXZGTXPUvIoyV6yN5-fN5qU.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    }
+    /* latin */
+    @font-face {
+    font-family: 'Lobster Two';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url(https://fonts.gstatic.com/s/lobstertwo/v20/BngRUXZGTXPUvIoyV6yN5-92w7CGwR0.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    }
+
+    </style>
+
+
+
+
+
+    <body class="clean-body u_body" style="margin: 0;padding: 0;-webkit-text-size-adjust: 100%;background-color: #e7e7e7;color: #000000">
+    
+    
+    <table id="u_body" style="border-collapse: collapse;table-layout: fixed;border-spacing: 0;mso-table-lspace: 0pt;mso-table-rspace: 0pt;vertical-align: top;min-width: 320px;Margin: 0 auto;background-color: #e7e7e7;width:100%" cellpadding="0" cellspacing="0">
+    <tbody>
+    <tr style="vertical-align: top">
+    <td style="word-break: break-word;border-collapse: collapse !important;vertical-align: top">
+    
+    
+    <div class="u-row-container" style="padding: 0px;background-color: transparent">
+    <div class="u-row" style="margin: 0 auto;min-width: 320px;max-width: 600px;overflow-wrap: break-word;word-wrap: break-word;word-break: break-word;background-color: transparent;">
+    <div style="border-collapse: collapse;display: table;width: 100%;height: 100%;background-image: url('https://raw.githubusercontent.com/maheshksabbella/emails/main/images/image-6.png');background-repeat: no-repeat;background-position: center top;background-color: transparent;">
+    
+    
+    
+    <div class="u-col u-col-100" style="max-width: 320px;min-width: 600px;display: table-cell;vertical-align: top;">
+    <div style="height: 100%;width: 100% !important;">
+    <div style="box-sizing: border-box; height: 100%; padding: 0px;border-top: 0px solid transparent;border-left: 0px solid transparent;border-right: 0px solid transparent;border-bottom: 0px solid transparent;"> 
+    
+    <table id="u_content_text_5" style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+    <tbody>
+    <tr>
+    <td class="v-container-padding-padding" style="overflow-wrap:break-word;word-break:break-word;padding:46px 10px 15px;font-family:arial,helvetica,sans-serif;" align="left">
+    
+    <div class="v-font-size" style="font-size: 14px; color: #00c1ed; line-height: 140%; text-align: center; word-wrap: break-word;">
+    <p style="font-size: 14px; line-height: 140%;"><span style="font-size: 40px; line-height: 56px;"><strong><span style="font-family: 'Lobster Two', cursive; line-height: 56px; font-size: 40px;">A Milestone Worth</span></strong></span><br /><span style="font-size: 40px; line-height: 56px; color: #ffffff;"><strong><span style="font-family: 'Lobster Two', cursive; line-height: 56px; font-size: 40px;">Celebrating</span></strong></span></p>
+    </div>
+
+    </td>
+    </tr>
+    </tbody>
+    </table>
+
+    <table id="u_content_heading_3" style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+    <tbody>
+    <tr>
+    <td class="v-container-padding-padding" style="overflow-wrap:break-word;word-break:break-word;padding:65px 15px 0px 10px;font-family:arial,helvetica,sans-serif;" align="left">
+    
+    <h1 class="v-font-size" style="margin: 0px; color: #00c1ed; line-height: 100%; text-align: center; word-wrap: break-word; font-family: arial black,AvenirNext-Heavy,avant garde,arial; font-size: 170px; font-weight: 400;"><strong>`
+    
+    var html12 = `</strong></h1>
+
+    </td>
+    </tr>
+    </tbody>
+    </table>
+
+    <table style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+    <tbody>
+    <tr>
+    <td class="v-container-padding-padding" style="overflow-wrap:break-word;word-break:break-word;padding:0px 6px 60px 0px;font-family:arial,helvetica,sans-serif;" align="left">
+    
+    <div class="v-font-size" style="font-size: 14px; color: #ffffff; line-height: 140%; text-align: center; word-wrap: break-word;">
+    <p style="font-size: 14px; line-height: 140%;"><span style="font-family: 'arial black', AvenirNext-Heavy, 'avant garde', arial; font-size: 20px; line-height: 28px;"><strong>Y E A R </strong></span></p>
+    </div>
+
+    </td>
+    </tr>
+    </tbody>
+    </table>
+
+    <table id="u_content_heading_5" style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+    <tbody>
+    <tr>
+    <td class="v-container-padding-padding" style="overflow-wrap:break-word;word-break:break-word;padding:30px 10px 0px;font-family:arial,helvetica,sans-serif;" align="left">
+    
+    <h1 class="v-font-size" style="margin: 0px; color: #ffffff; line-height: 140%; text-align: center; word-wrap: break-word; font-family: arial black,AvenirNext-Heavy,avant garde,arial; font-size: 25px; font-weight: 400;">Celebrating a Year of Success!</h1>
+
+    </td>
+    </tr>
+    </tbody>
+    </table>
+
+    <table id="u_content_image_5" style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+    <tbody>
+    <tr>
+    <td class="v-container-padding-padding" style="overflow-wrap:break-word;word-break:break-word;padding:30px 10px 0px;font-family:arial,helvetica,sans-serif;" align="left">
+    
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+    <td style="padding-right: 0px;padding-left: 0px;" align="center">
+    
+    <img align="center" border="0" src="https://raw.githubusercontent.com/maheshksabbella/emails/main/images/image-7.png" alt="Gadgets " title="Gadgets " style="outline: none;text-decoration: none;-ms-interpolation-mode: bicubic;clear: both;display: inline-block !important;border: none;height: auto;float: none;width: 70%;max-width: 406px;" width="406" class="v-src-width v-src-max-width"/>
+    
+    </td>
+    </tr>
+    </table>
+
+    </td>
+    </tr>
+    </tbody>
+    </table>
+
+    <table id="u_content_text_4" style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+    <tbody>
+    <tr>
+    <td class="v-container-padding-padding" style="overflow-wrap:break-word;word-break:break-word;padding:30px 55px 0px;font-family:arial,helvetica,sans-serif;" align="left">
+    
+    <div class="v-font-size" style="font-size: 14px; color: #ecf0f1; line-height: 140%; text-align: center; word-wrap: break-word;">
+    <p style="line-height: 140%;">It's hard to believe that `
+    
+    var html2 = ` already passed since you joined our team. We want to take this moment to celebrate your dedication, hard work, and the significant contributions you've made during your time here.</p>
+    Your commitment to our company is greatly appreciated, and we look forward to many more years of working together. Thank you for being an integral part of our success.</p>
+    Wishing you a day filled with joy and a future filled with continued achievement.
+    Cheers to you, `
+
+
+    var html3 = `!</p>
+    </div>
+
+    </td>
+    </tr>
+    </tbody>
+    </table>
+
+    <table id="u_content_image_1" style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+    <tbody>
+    <tr>
+    <td class="v-container-padding-padding" style="overflow-wrap:break-word;word-break:break-word;padding:30px 10px;font-family:arial,helvetica,sans-serif;" align="left">
+    
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+    <td style="padding-right: 0px;padding-left: 0px;" align="center">
+    
+    <img align="center" border="0" src="https://raw.githubusercontent.com/maheshksabbella/emails/main/images/image-5.png" alt="Pattern" title="Pattern" style="outline: none;text-decoration: none;-ms-interpolation-mode: bicubic;clear: both;display: inline-block !important;border: none;height: auto;float: none;width: 43%;max-width:30%;" width="249.4" class="v-src-width v-src-max-width"/>
+    
+    </td>
+    </tr>
+    </table>
+
+    </td>
+    </tr>
+    </tbody>
+    </table>
+
+    </div> 
+    </div>
+    </div>
+    
+    
+    </div>
+    </div>
+    </div>
+    
+    
+    
+
+
+    
+    
+    <div class="u-row-container" style="padding: 0px;background-color: transparent">
+    <div class="u-row" style="margin: 0 auto;min-width: 320px;max-width: 600px;overflow-wrap: break-word;word-wrap: break-word;word-break: break-word;background-color: transparent;">
+    <div style="border-collapse: collapse;display: table;width: 100%;height: 100%;background-color: transparent;">
+    
+    
+    
+    <div class="u-col u-col-100" style="max-width: 320px;min-width: 600px;display: table-cell;vertical-align: top;">
+    <div style="background-color: #323a3e;height: 100%;width: 100% !important;border-radius: 0px;-webkit-border-radius: 0px; -moz-border-radius: 0px;">
+    <div style="box-sizing: border-box; height: 100%; padding: 0px;border-top: 0px solid transparent;border-left: 0px solid transparent;border-right: 0px solid transparent;border-bottom: 0px solid transparent;border-radius: 0px;-webkit-border-radius: 0px; -moz-border-radius: 0px;"> 
+    
+    <table style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+    <tbody>
+    <tr>
+    <td class="v-container-padding-padding" style="overflow-wrap:break-word;word-break:break-word;padding:10px;font-family:arial,helvetica,sans-serif;" align="left">
+    
+    <table height="0px" align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse;table-layout: fixed;border-spacing: 0;mso-table-lspace: 0pt;mso-table-rspace: 0pt;vertical-align: top;border-top: 1px solid #555555;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%">
+    <tbody>
+    <tr style="vertical-align: top">
+    <td style="word-break: break-word;border-collapse: collapse !important;vertical-align: top;font-size: 0px;line-height: 0px;mso-line-height-rule: exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%">
+    <span>&#160;</span>
+    </td>
+    </tr>
+    </tbody>
+    </table>
+
+    </td>
+    </tr>
+    </tbody>
+    </table>
+
+    </div> 
+    </div>
+    </div>
+    
+    
+    </div>
+    </div>
+    </div>
+    
+
+
+    
+    
+    <div class="u-row-container" style="padding: 0px;background-color: transparent">
+    <div class="u-row" style="margin: 0 auto;min-width: 320px;max-width: 600px;overflow-wrap: break-word;word-wrap: break-word;word-break: break-word;background-color: transparent;">
+    <div style="border-collapse: collapse;display: table;width: 100%;height: 100%;background-color: transparent;">
+    
+    
+    
+    <div class="u-col u-col-100" style="max-width: 320px;min-width: 600px;display: table-cell;vertical-align: top;">
+    <div style="background-color: #323a3e;height: 100%;width: 100% !important;border-radius: 0px;-webkit-border-radius: 0px; -moz-border-radius: 0px;">
+    <div style="box-sizing: border-box; height: 100%; padding: 0px;border-top: 0px solid transparent;border-left: 0px solid transparent;border-right: 0px solid transparent;border-bottom: 0px solid transparent;border-radius: 0px;-webkit-border-radius: 0px; -moz-border-radius: 0px;"> 
+    
+    <table style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+    <tbody>
+    <tr>
+    <td class="v-container-padding-padding" style="overflow-wrap:break-word;word-break:break-word;padding:30px 10px 10px;font-family:arial,helvetica,sans-serif;" align="left">
+    
+    <div align="center">
+    <div style="display: table; max-width:147px;">
+    
+    
+    
+    
+    <table align="left" border="0" cellspacing="0" cellpadding="0" width="32" height="32" style="width: 32px !important;height: 32px !important;display: inline-block;border-collapse: collapse;table-layout: fixed;border-spacing: 0;mso-table-lspace: 0pt;mso-table-rspace: 0pt;vertical-align: top;margin-right: 5px">
+    <tbody><tr style="vertical-align: top"><td align="left" valign="middle" style="word-break: break-word;border-collapse: collapse !important;vertical-align: top">
+    <a href="https://facebook.com/" title="Facebook" target="_blank">
+    <img src="https://raw.githubusercontent.com/maheshksabbella/emails/main/images/image-1.png" alt="Facebook" title="Facebook" width="32" style="outline: none;text-decoration: none;-ms-interpolation-mode: bicubic;clear: both;display: block !important;border: none;height: auto;float: none;max-width: 32px !important">
+    </a>
+    </td></tr>
+    </tbody></table>
+    
+    
+    
+    <table align="left" border="0" cellspacing="0" cellpadding="0" width="32" height="32" style="width: 32px !important;height: 32px !important;display: inline-block;border-collapse: collapse;table-layout: fixed;border-spacing: 0;mso-table-lspace: 0pt;mso-table-rspace: 0pt;vertical-align: top;margin-right: 5px">
+    <tbody><tr style="vertical-align: top"><td align="left" valign="middle" style="word-break: break-word;border-collapse: collapse !important;vertical-align: top">
+    <a href="https://twitter.com/" title="Twitter" target="_blank">
+    <img src="https://raw.githubusercontent.com/maheshksabbella/emails/main/images/image-3.png" alt="Twitter" title="Twitter" width="32" style="outline: none;text-decoration: none;-ms-interpolation-mode: bicubic;clear: both;display: block !important;border: none;height: auto;float: none;max-width: 32px !important">
+    </a>
+    </td></tr>
+    </tbody></table>
+    
+    
+    
+    <table align="left" border="0" cellspacing="0" cellpadding="0" width="32" height="32" style="width: 32px !important;height: 32px !important;display: inline-block;border-collapse: collapse;table-layout: fixed;border-spacing: 0;mso-table-lspace: 0pt;mso-table-rspace: 0pt;vertical-align: top;margin-right: 5px">
+    <tbody><tr style="vertical-align: top"><td align="left" valign="middle" style="word-break: break-word;border-collapse: collapse !important;vertical-align: top">
+    <a href="https://linkedin.com/" title="LinkedIn" target="_blank">
+    <img src="https://raw.githubusercontent.com/maheshksabbella/emails/main/images/image-2.png" alt="LinkedIn" title="LinkedIn" width="32" style="outline: none;text-decoration: none;-ms-interpolation-mode: bicubic;clear: both;display: block !important;border: none;height: auto;float: none;max-width: 32px !important">
+    </a>
+    </td></tr>
+    </tbody></table>
+    
+    
+    
+    <table align="left" border="0" cellspacing="0" cellpadding="0" width="32" height="32" style="width: 32px !important;height: 32px !important;display: inline-block;border-collapse: collapse;table-layout: fixed;border-spacing: 0;mso-table-lspace: 0pt;mso-table-rspace: 0pt;vertical-align: top;margin-right: 0px">
+    <tbody><tr style="vertical-align: top"><td align="left" valign="middle" style="word-break: break-word;border-collapse: collapse !important;vertical-align: top">
+    <a href="https://instagram.com/" title="Instagram" target="_blank">
+    <img src="https://raw.githubusercontent.com/maheshksabbella/emails/main/images/image-4.png" alt="Instagram" title="Instagram" width="32" style="outline: none;text-decoration: none;-ms-interpolation-mode: bicubic;clear: both;display: block !important;border: none;height: auto;float: none;max-width: 32px !important">
+    </a>
+    </td></tr>
+    </tbody></table>
+    
+    
+    
+    
+    </div>
+    </div>
+
+    </td>
+    </tr>
+    </tbody>
+    </table>
+
+    <table id="u_content_text_3" style="font-family:arial,helvetica,sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+    <tbody>
+    <tr>
+    <td class="v-container-padding-padding" style="overflow-wrap:break-word;word-break:break-word;padding:10px 10px 30px;font-family:arial,helvetica,sans-serif;" align="left">
+    
+    <div class="v-font-size" style="font-size: 14px; color: #ffffff; line-height: 140%; text-align: center; word-wrap: break-word;">
+    <p style="font-size: 14px; line-height: 140%;">Inherit Cloud Private Ltd</p>
+    <p style="font-size: 14px; line-height: 140%;">All rights reserved. </p>
+    <p style="font-size: 14px; line-height: 140%;">Hyderabad | Banglore | Chennai </p>
+    </div>
+
+    </td>
+    </tr>
+    </tbody>
+    </table>
+
+    </div> 
+    </div>
+    </div>
+    
+    </div>
+    </div>
+    </div>
+    
+    </td>
+    </tr>
+    </tbody>
+    </table>
+    
+    
+    </body>
+
+    </html>
+    `
+
+    --- 
+    html ++ years ++ html12 ++ middle ++ html2 ++ name ++ html3]]]></email:content>
+						</email:body>
+					</email:send>
+					<email:send doc:name="Send" doc:id="81575750-a884-4279-bf8c-9a96f32f177e" config-ref="Email_SMTP" toAddresses="#[vars.newEmails]" fromAddress="maheshkmarreddysabbella@gmail.com" subject='#["Take A Time To Wish " ++ payload.name]'>
+						<email:body >
+							<email:content ><![CDATA[#[%dw 2.0
+output text/plain
+
+var companyName = "Inherit Cloud"
+var employeeName = payload.name
+var position = "Apprentice"
+var yearsOfService = now().year - payload.joining.year
+
+---
+"Dear Team,\n\n" ++
+"We am delighted to inform you that we are celebrating a special milestone today. " ++ employeeName ++ " has been a valued member of our team for " ++ yearsOfService ++ " years!\n\n" ++
+employeeName ++ "'s dedication, hard work, and contributions to our team have been invaluable. Their commitment to " ++ companyName ++ " has played a significant role in our success, and we are truly grateful for their continued efforts.\n\n" ++
+"As we mark this special day, let's take a moment to appreciate " ++ employeeName ++ "'s journey with us and look forward to many more years of working together.\n\n" ++
+"Please join me in congratulating " ++ employeeName ++ " on this achievement and wishing them a wonderful anniversary!\n\n" ++
+"Best regards,\n\n" ++
+"InheritCloud\n"]]]></email:content>
+						</email:body>
+					</email:send>
+					<logger level="INFO" doc:name="Logger" doc:id="092e189d-dadc-4279-9e72-49f55990cb3d" message="#[payload]" />
+				</when>
+				<otherwise >
+					<logger level="INFO" doc:name="Logger" doc:id="4e8cb8e3-bf52-450a-acf1-49fd93db35a3" />
+				</otherwise>
+			</choice>
+		</foreach>
+	</flow>
+</mule>
