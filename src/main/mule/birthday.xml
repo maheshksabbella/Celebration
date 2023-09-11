@@ -1,19 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:google-sheets="http://www.mulesoft.org/schema/mule/google-sheets" xmlns:email="http://www.mulesoft.org/schema/mule/email"
-	xmlns:db="http://www.mulesoft.org/schema/mule/db"
-	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+<mule xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+	xmlns:google-sheets="http://www.mulesoft.org/schema/mule/google-sheets"
+	xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
 http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
-http://www.mulesoft.org/schema/mule/google-sheets http://www.mulesoft.org/schema/mule/google-sheets/current/mule-google-sheets.xsd">
+http://www.mulesoft.org/schema/mule/google-sheets http://www.mulesoft.org/schema/mule/google-sheets/current/mule-google-sheets.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd">
 	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="c9a5bf0e-3d74-4e86-8d64-60ffd26fbce1" >
-		<http:listener-connection host="0.0.0.0" port="8081" />
+		<http:listener-connection host="0.0.0.0" port="8082" protocol="HTTPS">
+			<tls:context >
+				<tls:key-store type="jks" path="server-keystore.jks" alias="mule-server" keyPassword="mulesoft" password="mulesoft" />
+			</tls:context>
+		</http:listener-connection>
 	</http:listener-config>
 	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="f592afe3-f399-4b47-936b-79c31801b859" >
-		<email:smtp-connection host="smtp.gmail.com" port="587" user="maheshkmarreddysabbella@gmail.com" password="aclhcfzcqunlyhby" >
+		<email:smtp-connection host="${secure::email.host}" port="${secure::email.port}" user="${secure::email.user}" password="${secure::email.password}" >
+			<reconnection >
+				<reconnect frequency="190"/>
+			</reconnection>
+			<pooling-profile maxActive="1" maxIdle="1" maxWait="1" />
 			<email:properties >
 				<email:property key="mail.smtp.starttls.enable" value="true" />
 			</email:properties>
@@ -21,77 +31,69 @@ http://www.mulesoft.org/schema/mule/google-sheets http://www.mulesoft.org/schema
 	</email:smtp-config>
 	<google-sheets:config name="Google_Sheets_Config" doc:name="Google Sheets Config" doc:id="1b18294d-e6e3-4d77-8584-0edb26ba2e95" >
 		<google-sheets:oauth-2-0-connection >
-			<google-sheets:oauth-authorization-code consumerKey="53735095196-b99qr18v0uaaikk15g6ca40q90mj3ek6.apps.googleusercontent.com" consumerSecret="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" resourceOwnerId="demouser" />
-			<google-sheets:oauth-callback-config listenerConfig="HTTP_Listener_config" callbackPath="/callback" authorizePath="/authorize" externalCallbackUrl="http://localhost:8081/callback" />
+			<reconnection >
+				<reconnect frequency="190"/>
+			</reconnection>
+			<google-sheets:oauth-authorization-code consumerKey="${secure::sheets.clientid}" consumerSecret="${secure::sheets.clientse}" resourceOwnerId="demouser" />
+			<google-sheets:oauth-callback-config listenerConfig="HTTP_Listener_config" callbackPath="/callback" authorizePath="/authorize" externalCallbackUrl="${sheets.call}" />
 		</google-sheets:oauth-2-0-connection>
 	</google-sheets:config>
+	<configuration-properties doc:name="Configuration properties" doc:id="17aa5bc0-6809-48c1-91cb-eac912a07760" file="config.yaml" />
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="599575ca-948e-4a31-ac97-8424ab26273c" file="config.yaml" key="password12345678" />
 	<flow name="birthdayFlow" doc:id="d52ae6e3-d619-419c-9675-c9438895e669" >
-		<http:listener doc:name="Listener" doc:id="71a00bdd-31ab-4c12-b004-fed41da46152" config-ref="HTTP_Listener_config" path="test">
-			<http:response >
-				<http:body ><![CDATA[#[vars.my]]]></http:body>
-			</http:response>
-		</http:listener>
+		<scheduler doc:name="Scheduler" doc:id="42c9103e-b365-4208-abb2-c21ea40da96e" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="1" timeUnit="DAYS"/>
+			</scheduling-strategy>
+		</scheduler>
 		<google-sheets:get-spreadsheets-values-by-spreadsheet-id-range doc:name="Get Spreadsheets Values" doc:id="efa0aa71-6c4f-4e5a-8a07-80519183963e" config-ref="Google_Sheets_Config" spreadsheetId="1N78MlvXlDPgsxv34ZE-ljyJtUGODKkFR2B4uXFs8Ewo" range="Sheet1" />
 		<ee:transform doc:name="Transform Message" doc:id="a4953824-1ee7-4400-9394-863218590040" >
 			<ee:message >
 			</ee:message>
 			<ee:variables >
-				<ee:set-variable variableName="people" ><![CDATA[%dw 2.0
-output application/json
-var people=payload.values map(item,index) -> {
-    "name":item[0],
-    "birthday":item[3] as Date {format: 'dd/MM/yyyy'} as Date {format: 'yyyy-MM-dd'},
-    "email":item[1] 
-}
----
-people 
-]]></ee:set-variable>
+				<ee:set-variable resource="dwScripts/toStoreEmployeeDetailsVar.dwl" variableName="people" />
 			</ee:variables>
 		</ee:transform>
 		<ee:transform doc:name="Transform Message" doc:id="ab8fcd9a-6e58-48a7-9377-08508981af83" >
 			<ee:message >
 			</ee:message>
 			<ee:variables >
-				<ee:set-variable variableName="emails" ><![CDATA[%dw 2.0
-output application/json
-var emails=payload.values map (item) -> item[1]
-
----
-emails]]></ee:set-variable>
+				<ee:set-variable resource="dwScripts/toStoreEmailVar.dwl" variableName="emails" />
 			</ee:variables>
 		</ee:transform>
+		<set-variable value="#[[]]" doc:name="Set Variable" doc:id="97771fa7-298d-453c-8823-298421788843" variableName="Birthdays"/>
 		<set-variable value="#[now()]" doc:name="To Store Present Time" doc:id="2c0e93d7-8c8e-4820-8b76-c6427e11f186" variableName="present"/>
-		<foreach doc:name="For Each" doc:id="045094ad-f00d-48f7-89eb-a43bb4a0da53" collection="#[vars.people]" counterVariableName="index">
+		<foreach doc:name="For Fetching Each Record At Once" doc:id="045094ad-f00d-48f7-89eb-a43bb4a0da53" collection="#[vars.people]" counterVariableName="index">
 			<ee:transform doc:name="Transform Message" doc:id="4dd9fa13-c0c6-4f5c-a55e-95efbbbc27c5" >
 				<ee:message >
-					<ee:set-payload ><![CDATA[%dw 2.0
-output application/json
----
-payload
-
-
-]]></ee:set-payload>
+					<ee:set-payload resource="dwScripts/toStoreIndividualRecordsVar.dwl" />
 				</ee:message>
 			</ee:transform>
 			<choice doc:name="Choice" doc:id="2a59b20f-10e9-4672-848e-4528325e88d6" >
 				<when expression="#[payload.birthday.month == vars.present.month and payload.birthday.day == vars.present.day]">
+					<ee:transform doc:name="Transform Message" doc:id="761cfe8e-f994-4e9b-ae4d-a6721e46ded2">
+						<ee:message>
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable variableName="Birthdays" ><![CDATA[%dw 2.0
+output application/json
+---
+[payload] ++ vars.Birthdays]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
 					<ee:transform doc:name="Transform Message" doc:id="d98b397a-d9c3-4ff7-831b-cfe2ecb0be8f">
 						<ee:message>
 						</ee:message>
 						<ee:variables >
-							<ee:set-variable variableName="newEmails" ><![CDATA[%dw 2.0
-output application/java
-var newEmails= vars.emails filter (item) -> item != payload.email
----
-newEmails]]></ee:set-variable>
+							<ee:set-variable resource="dwScripts/toStoreNewEmailVar.dwl" variableName="newEmails" />
 						</ee:variables>
 					</ee:transform>
-					<email:send doc:name="sendEmailtobirthdayemployee" doc:id="9c8a1a11-d302-4b25-af21-a713588670e7" config-ref="Email_SMTP" fromAddress="maheshkmarreddysabbella@gmail.com" subject='#["HAPPY BIRTHDAY " ++ upper(payload.name) ++ " FROM INHERITCLOUD"]'>
-						<email:to-addresses >
+					<email:send doc:name="sendEmailtobirthdayemployee" doc:id="9c8a1a11-d302-4b25-af21-a713588670e7" config-ref="Email_SMTP" fromAddress="maheshkmarreddysabbella@gmail.com" subject='#["HAPPY BIRTHDAY " ++ upper(payload.name) ++ " FROM INHERIT CLOUD"]'>
+						<email:to-addresses>
 							<email:to-address value="#[payload.email]" />
 						</email:to-addresses>
 						<email:body contentType="text/html">
-							<email:content ><![CDATA[#[%dw 2.0
+							<email:content><![CDATA[#[%dw 2.0
 output text/plain
 
 
@@ -503,24 +505,6 @@ table, td { color: #000000; } #u_body a { color: #0000ee; text-decoration: under
 html ++ payload.name ++ html2]]]></email:content>
 						</email:body>
 					</email:send>
-					<email:send doc:name="SendToTeam" doc:id="7de9a254-95e0-44d3-90e8-3e1f57c87f55" config-ref="Email_SMTP" fromAddress="maheshkmarreddysabbella@gmail.com" subject='#["Take A Time To Wish " ++ payload.name++"..!"]' toAddresses="#[vars.newEmails]">
-						<email:body >
-							<email:content ><![CDATA[#[%dw 2.0
-output text/plain
-var name = payload.name
-var companyName = "Inherit Cloud."
-var yourName = "Mahesh"
-var position = "Apprentice"
----
-"Dear Team,\n\n" ++
-"I hope this message finds you well. Today one of our esteemed colleagues is celebrating their birthday.\n\n" ++
-"As a close-knit team, it's important for us to celebrate each other's milestones and show our appreciation. Today, I invite each of you to join in and send your warmest birthday wishes to " ++ name ++ ". Whether it's a quick message, a virtual card, or a simple 'Happy Birthday!' in person, your kind words will make his day extra special.\n\n" ++
-"Please take a moment to send your birthday greetings to " ++ name ++ " today, either through email, a chat message, or in person if you're in the office. Small gestures can go a long way in brightening someone's day.\n\n" ++
-"Let's come together as a team to make " ++ name ++ "'s birthday truly exceptional.\n\n" ++
-"Warm regards,\n\n" ++
-companyName]]]></email:content>
-						</email:body>
-					</email:send>
 					<logger level="INFO" doc:name="Logger" doc:id="fb97ef86-3e6e-4716-bc9a-67b8abd0b49f" message="#[payload]" />
 				</when>
 				<otherwise >
@@ -528,66 +512,76 @@ companyName]]]></email:content>
 				</otherwise>
 			</choice>
 		</foreach>
+		<choice doc:name="Choice" doc:id="d8ee2ce5-4296-4d8b-8cd1-26b6b35bc1c3" >
+			<when expression="#[!isEmpty(vars.Birthdays)]">
+				<ee:transform doc:name="Transform Message" doc:id="d5055d59-1243-40c0-9e26-df4c3f3a0c2a">
+			<ee:message>
+						<ee:set-payload resource="dwScripts/emailBody1.dwl" />
+			</ee:message>
+		</ee:transform>
+				<email:send doc:name="SendToTeam" doc:id="7de9a254-95e0-44d3-90e8-3e1f57c87f55" config-ref="Email_SMTP" fromAddress="maheshkmarreddysabbella@gmail.com" subject='#["Birthdays"]' toAddresses="#[vars.emails]">
+			<email:body contentType="text/html">
+							<email:content><![CDATA[#[%dw 2.0
+output text/plain
+---
+payload]]]></email:content>
+						</email:body>
+					</email:send>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="14ea8a7b-46e0-4e32-8e18-f8f69e805742" />
+			</otherwise>
+		</choice>
 	</flow>
 	<flow name="anniversaryflow" doc:id="61e04a85-4ec7-4f4d-96ab-a39bae6cfb95" >
-		<http:listener doc:name="Listener" doc:id="179546fe-2364-4638-a745-8e3782572e1a" config-ref="HTTP_Listener_config" path="test1" >
-			<http:response >
-				<http:body ><![CDATA[#[vars.my]]]></http:body>
-			</http:response>
-		</http:listener>
+		<scheduler doc:name="Scheduler" doc:id="96007e4b-3e52-4f45-b6d5-9d78c2ab7070" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="1" timeUnit="DAYS"/>
+			</scheduling-strategy>
+		</scheduler>
 		<google-sheets:get-spreadsheets-values-by-spreadsheet-id-range doc:name="Get Spreadsheets Values" doc:id="b2068b71-8f9c-4acc-9a9a-ea854857460a" config-ref="Google_Sheets_Config" spreadsheetId="1N78MlvXlDPgsxv34ZE-ljyJtUGODKkFR2B4uXFs8Ewo" range="Sheet1" />
 		<ee:transform doc:name="Transform Message" doc:id="71303042-053f-46e7-bd2f-826344bec069" >
 			<ee:message >
 			</ee:message>
 			<ee:variables >
-				<ee:set-variable variableName="people" ><![CDATA[%dw 2.0
-output application/json
-var people=payload.values map(item,index) -> {
-    "name":item[0],
-    "joining":item[4] as Date {format: 'dd/MM/yyyy'} as Date {format: 'yyyy-MM-dd'},
-    "email":item[1] 
-}
----
-people]]></ee:set-variable>
+				<ee:set-variable resource="dwScripts/toStoreEmployee1DetailsVar.dwl" variableName="people" />
 			</ee:variables>
 		</ee:transform>
 		<ee:transform doc:name="Transform Message" doc:id="ddb0d419-902f-41d8-a319-dcf9753988fe" >
 			<ee:message >
 			</ee:message>
 			<ee:variables >
-				<ee:set-variable variableName="emails" ><![CDATA[%dw 2.0
-output application/json
-var emails=payload.values map(item)-> item[1]
----
-emails]]></ee:set-variable>
+				<ee:set-variable resource="dwScripts/toStoreEmailVar.dwl" variableName="emails" />
 			</ee:variables>
 		</ee:transform>
+		<set-variable value="#[[]]" doc:name="Set Variable" doc:id="6b10636c-e2b1-4b55-9642-41e99d1982e2" variableName="Anniversaries"/>
 		<set-variable value="#[now()]" doc:name="To store present time" doc:id="d5228aef-16ac-4f77-b5a2-ed1de50c529c" variableName="present" />
 		<foreach doc:name="For Each" doc:id="84b5ea7e-b02c-48d7-9dee-3c2a4425f924" collection="#[vars.people]">
 			<ee:transform doc:name="Transform Message" doc:id="8d93c4f9-be5f-4c15-ac1b-f341df92731c" >
 				<ee:message >
-					<ee:set-payload ><![CDATA[%dw 2.0
-output application/json
----
-payload]]></ee:set-payload>
+					<ee:set-payload resource="dwScripts/toStoreIndividualRecordsVar.dwl" />
 				</ee:message>
 			</ee:transform>
 			<choice doc:name="Choice" doc:id="6f72f965-ca76-407c-8c92-e527bd0f8b07" >
 				<when expression="#[payload.joining.month == vars.present.month and payload.joining.day == vars.present.day]" >
+					<ee:transform doc:name="Transform Message" doc:id="7deb53de-f485-4d1e-b909-ce0bf0362bee">
+						<ee:message>
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable variableName="Anniversaries" ><![CDATA[%dw 2.0
+output application/json
+---
+[payload] ++ vars.Anniversaries]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
 					<ee:transform doc:name="Transform Message" doc:id="01e368bc-3d8d-4948-b71c-f9f1727caed2">
 						<ee:message>
 						</ee:message>
 						<ee:variables >
-							<ee:set-variable variableName="newEmails" ><![CDATA[%dw 2.0
-output application/json
-var newEmails= vars.emails filter(item) -> item != payload.email
----
-newEmails
-
-]]></ee:set-variable>
+							<ee:set-variable resource="dwScripts/toStoreNewEmailVar.dwl" variableName="newEmails" />
 						</ee:variables>
 					</ee:transform>
-					<email:send doc:name="Send" doc:id="a75ee568-5e3c-4f4f-b836-9acf4a637741" config-ref="Email_SMTP" fromAddress="maheshkmarreddysabbella@gmail.com" subject='#["HAPPY WORK ANNIVERSARY " ++ upper(payload.name) ++" FROM INHERITCLOUD"]'>
+					<email:send doc:name="Send_Email_To_Anniversary_Employees" doc:id="a75ee568-5e3c-4f4f-b836-9acf4a637741" config-ref="Email_SMTP" fromAddress="maheshkmarreddysabbella@gmail.com" subject='#["HAPPY WORK ANNIVERSARY " ++ upper(payload.name) ++" FROM INHERIT CLOUD"]'>
 						<email:to-addresses >
 							<email:to-address value="#[payload.email]" />
 						</email:to-addresses>
@@ -597,8 +591,8 @@ newEmails
 
     var name = payload.name
     var years = now().year - payload.joining.year
-    var subject = if (years == 1) "Celebrating a Year of Success!" else "Celebrating " ++ years ++ " Years of Success!"
-    var middle = if(years == 1) "1 year has " else  years ++ " have "
+    var subject = if (years == 1) "Celebrating an Year of Success!" else "Celebrating " ++ years ++ " Years of Success!"
+    var middle = if(years == 1) "1 year has " else  years ++ " years have "
 
 
     var html = `
@@ -761,7 +755,7 @@ newEmails
     <tr>
     <td class="v-container-padding-padding" style="overflow-wrap:break-word;word-break:break-word;padding:30px 10px 0px;font-family:arial,helvetica,sans-serif;" align="left">
     
-    <h1 class="v-font-size" style="margin: 0px; color: #ffffff; line-height: 140%; text-align: center; word-wrap: break-word; font-family: arial black,AvenirNext-Heavy,avant garde,arial; font-size: 25px; font-weight: 400;">Celebrating a Year of Success!</h1>
+    <h1 class="v-font-size" style="margin: 0px; color: #ffffff; line-height: 140%; text-align: center; word-wrap: break-word; font-family: arial black,AvenirNext-Heavy,avant garde,arial; font-size: 25px; font-weight: 400;"> Celebrating Year Of Success! </h1>
 
     </td>
     </tr>
@@ -997,26 +991,6 @@ newEmails
     html ++ years ++ html12 ++ middle ++ html2 ++ name ++ html3]]]></email:content>
 						</email:body>
 					</email:send>
-					<email:send doc:name="Send" doc:id="81575750-a884-4279-bf8c-9a96f32f177e" config-ref="Email_SMTP" toAddresses="#[vars.newEmails]" fromAddress="maheshkmarreddysabbella@gmail.com" subject='#["Take A Time To Wish " ++ payload.name]'>
-						<email:body >
-							<email:content ><![CDATA[#[%dw 2.0
-output text/plain
-
-var companyName = "Inherit Cloud"
-var employeeName = payload.name
-var position = "Apprentice"
-var yearsOfService = now().year - payload.joining.year
-
----
-"Dear Team,\n\n" ++
-"We am delighted to inform you that we are celebrating a special milestone today. " ++ employeeName ++ " has been a valued member of our team for " ++ yearsOfService ++ " years!\n\n" ++
-employeeName ++ "'s dedication, hard work, and contributions to our team have been invaluable. Their commitment to " ++ companyName ++ " has played a significant role in our success, and we are truly grateful for their continued efforts.\n\n" ++
-"As we mark this special day, let's take a moment to appreciate " ++ employeeName ++ "'s journey with us and look forward to many more years of working together.\n\n" ++
-"Please join me in congratulating " ++ employeeName ++ " on this achievement and wishing them a wonderful anniversary!\n\n" ++
-"Best regards,\n\n" ++
-"InheritCloud\n"]]]></email:content>
-						</email:body>
-					</email:send>
 					<logger level="INFO" doc:name="Logger" doc:id="092e189d-dadc-4279-9e72-49f55990cb3d" message="#[payload]" />
 				</when>
 				<otherwise >
@@ -1024,5 +998,25 @@ employeeName ++ "'s dedication, hard work, and contributions to our team have be
 				</otherwise>
 			</choice>
 		</foreach>
+		<choice doc:name="Choice" doc:id="713ae476-f428-4524-9447-aa9d141f0071" >
+			<when expression="#[!isEmpty(vars.Anniversaries)]">
+				<ee:transform doc:name="Transform Message" doc:id="6c3e164f-f3e2-4d17-b028-19483eaea181">
+			<ee:message>
+						<ee:set-payload resource="dwScripts/emailBody.dwl" />
+			</ee:message>
+		</ee:transform>
+				<email:send doc:name="Send To Team" doc:id="81575750-a884-4279-bf8c-9a96f32f177e" config-ref="Email_SMTP" toAddresses="#[vars.emails]" fromAddress="maheshkmarreddysabbella@gmail.com" subject='#["Anniversaries"]'>
+						<email:body contentType="text/html">
+							<email:content><![CDATA[#[%dw 2.0
+output text/plain
+---
+payload]]]></email:content>
+						</email:body>
+					</email:send>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="3044bac7-bd9e-427b-9940-89d38556c578" />
+			</otherwise>
+		</choice>
 	</flow>
 </mule>

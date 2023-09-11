@@ -1,0 +1,15 @@
+https:
+  host: "localhost"
+  port: "8082"
+
+sheets:
+  clientid: "53735095196-b99qr18v0uaaikk15g6ca40q90mj3ek6.apps.googleusercontent.com"
+  clientse: "![1n3K1JQw2n78zpGjGQFGMqPDaM5H7LH68XH63PC41gjmMnEiRCEGUAYVNW3l2ZD6]"
+  call: "https://localhost:8081/callback"
+
+email:
+  host: "smtp.gmail.com"
+  port: "587"
+  user: "maheshkmarreddysabbella@gmail.com"
+  password: "![ho9WyunMDa652FsTyCeuEXfAFMDWGAb/JDMkhocw2sw=]"
+  
